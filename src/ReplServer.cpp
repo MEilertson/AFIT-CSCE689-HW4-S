@@ -107,10 +107,57 @@ void ReplServer::replicate() {
 
          // Incoming replication--add it to this server's local database
          addReplDronePlots(data);         
-      }       
+      }
+
+      //sync data in DB
+      syncDB(); 
 
       usleep(1000);
    }   
+}
+/**********************************************************************************************
+ * syncDB - looks at the database and grabs the new plots, marshalling them and
+ *                 sending them to the queue manager
+ *
+ *    Returns: number of new plots sent to the QueueMgr
+ *
+ *    Throws: socket_error for recoverable errors, runtime_error for unrecoverable types
+ **********************************************************************************************/
+void ReplServer::syncDB() {
+
+   auto dbitr = _plotdb.begin();
+   const unsigned int sync_server_id = boss_id;
+   for( ; dbitr != _plotdb.end(); dbitr++){
+      if(dbitr->isFlagSet(DBFLAG_SYNCD)){
+         continue;
+      }
+      //auto it = std::find_if(node_time_offset.begin(), node_time_offset.end(), [&](const std::tuple<unsigned int,int>& e) {return std::get<0>(e) == dbitr->node_id;});
+      //if(it != node_time_offset.end()){
+         if(dbitr->node_id == sync_server_id){
+            //dbitr->timestamp = dbitr->timestamp - (std::get<1>(*it));
+         }
+         else if (dbitr->node_id == _queue.my_id){
+            auto it = std::find_if(node_time_offset.begin(), node_time_offset.end(), [&](const std::tuple<unsigned int,time_t>& e) {return std::get<0>(e) == sync_server_id;});
+            if(it != node_time_offset.end()){
+               dbitr->timestamp = dbitr->timestamp - (std::get<1>(*it));
+               dbitr->setFlags(DBFLAG_SYNCD);
+            }
+         }
+         else {
+            auto it = std::find_if(node_time_offset.begin(), node_time_offset.end(), [&](const std::tuple<unsigned int,time_t>& e) {return std::get<0>(e) == dbitr->node_id;});
+            if(it != node_time_offset.end())
+               dbitr->timestamp = dbitr->timestamp - (std::get<1>(*it));
+            if(_queue.my_id == sync_server_id){
+               dbitr->setFlags(DBFLAG_SYNCD);
+               continue;
+            }
+            it = std::find_if(node_time_offset.begin(), node_time_offset.end(), [&](const std::tuple<unsigned int,time_t>& e) {return std::get<0>(e) == sync_server_id;});
+            if(it != node_time_offset.end()){
+               dbitr->timestamp = dbitr->timestamp - (std::get<1>(*it));
+               dbitr->setFlags(DBFLAG_SYNCD);
+            }
+         }
+      }
 }
 
 /**********************************************************************************************
@@ -200,6 +247,7 @@ void ReplServer::addReplDronePlots(std::vector<uint8_t> &data) {
    for (unsigned int i=0; i<count; i++) {
       plot.clear();
       plot.assign(dptr, dptr + DronePlot::getDataSize());
+      //check for duplicated plot
       addSingleDronePlot(plot);
       dptr += DronePlot::getDataSize();      
    }
@@ -217,7 +265,20 @@ void ReplServer::addSingleDronePlot(std::vector<uint8_t> &data) {
    DronePlot tmp_plot;
 
    tmp_plot.deserialize(data);
-
+   std::list<DronePlot>::iterator dbptr = _plotdb.begin();
+   for ( ; dbptr != _plotdb.end(); dbptr++) {
+      if ((tmp_plot.drone_id == dbptr->drone_id) && (tmp_plot.latitude == dbptr->latitude) && (tmp_plot.longitude == dbptr->longitude)){
+         //duplicate found
+         auto it = std::find_if(node_time_offset.begin(), node_time_offset.end(), [&](const std::tuple<unsigned int,time_t>& e) {return std::get<0>(e) == tmp_plot.node_id;});
+         if(it != node_time_offset.end()){
+            //we have an offset for this node already
+            return;
+         } else {
+            node_time_offset.emplace_back(tmp_plot.node_id, (dbptr->timestamp - tmp_plot.timestamp));
+            return;
+         }
+      }
+   }
    _plotdb.addPlot(tmp_plot.drone_id, tmp_plot.node_id, tmp_plot.timestamp, tmp_plot.latitude,
                                                          tmp_plot.longitude);
 }

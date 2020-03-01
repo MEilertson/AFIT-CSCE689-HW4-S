@@ -55,6 +55,15 @@ public:
    // Overloaded to prevent this function from being used
    virtual void runServer();
 
+   void setTimeBoss(std::string boss_id) { _time_boss_ID = boss_id; };
+   std::string getTimeBoss() { return _time_boss_ID; };
+
+   void launchElection();
+   std::vector<std::tuple<std::string, unsigned long, unsigned short>> _server_list;  
+   unsigned int my_id;
+   std::string _server_ID;
+   std::string _time_boss_ID;
+
 private:
 
    // Launches a connection to the other server from queue data
@@ -75,12 +84,12 @@ private:
       std::vector<uint8_t> data;
    };
 
-   std::string _server_ID;
+
 
    // The queue list
    std::queue<queue_element> _queue;
 
-   std::vector<std::tuple<std::string, unsigned long, unsigned short>> _server_list;  
+
 };
 
 

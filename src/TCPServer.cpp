@@ -77,6 +77,7 @@ void TCPServer::runServer() {
    timespec sleeptime;
    sleeptime.tv_sec = 0;
    sleeptime.tv_nsec = 100000000;
+   srand(time(NULL));
 
    // Start the server socket listening
    listenSvr();
@@ -107,7 +108,7 @@ TCPConn *TCPServer::handleSocket() {
   
    // The socket has data, means a new connection 
    if (_sockfd.hasData()) {
-
+      
       // Try to accept the connection
       TCPConn *new_conn = new TCPConn(_server_log, _aes_key, _verbosity);
       if (!new_conn->accept(_sockfd)) {
@@ -142,10 +143,8 @@ TCPConn *TCPServer::handleSocket() {
       std::string msg = "Connection from IP address '";
       msg += ipaddr_str;
       msg += "'.";
-      _server_log.writeLog(msg);
-
-      // Send an authentication string in cleartext
-            
+      _server_log.writeLog(msg);  
+      //new_conn->setSvrID()
 
       return new_conn;
    }

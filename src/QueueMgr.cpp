@@ -122,10 +122,10 @@ void QueueMgr::bindSvr(const char *ip_addr, short unsigned int port) {
    // Now remove this server from the server list (if it's in there)
    auto sliter = _server_list.begin();
    while (sliter != _server_list.end()) {
-
       // If we found our server, clear it from the list
       if ((std::get<1>(*sliter) == getIPAddr()) && (std::get<2>(*sliter) == htons(getPort()))){
          _server_ID = std::get<0>(*sliter);
+         my_id = (_server_ID.at(2)) - '0';
          sliter = _server_list.erase(sliter);
          found = true;
       }
@@ -158,7 +158,9 @@ void QueueMgr::bindSvr(const char *ip_addr, short unsigned int port) {
 void QueueMgr::handleQueue() {
 
    // Accept new connections, if any
-   handleSocket();
+   TCPConn *new_conn = handleSocket();
+   if(new_conn != NULL)
+      new_conn->setSvrID(_server_ID.c_str());
 
    // Handle any open connections, reading from and writing to the socket
    handleConnections();
@@ -264,7 +266,40 @@ bool QueueMgr::pop(std::string &sid, std::vector<uint8_t> &data) {
    }
    return false;
 }
+/*********************************************************************************************
+ * launchElection - Sends connections to other servers and reports SID, servers will adopt the
+ * lowest SID received, or themselves if their ID is lowest.  
+ *
+ *    Params:  None
+ * 
+ *    Throws: 
+ *
+ *********************************************************************************************/
+/* void QueueMgr::launchElection(){
 
+   for(int i = 0; i < _server_list.size(); i++){
+      
+      // Try to connect to the server and if there's an issue, delete and re-throw socket_error
+      TCPConn *new_conn = new TCPConn(_server_log, _aes_key, _verbosity);
+      new_conn->setNodeID(std::get<0>(_server_list[i]).c_str());
+      new_conn->setSvrID(getServerID());
+
+      try {
+         new_conn->connect(std::get<1>(_server_list[i]), std::get<2>(_server_list[i]));
+      } catch (socket_error &e) {
+         std::stringstream msg;
+         msg << "Connect to SID " << std::get<0>(_server_list[i]).c_str() << " failed when trying to send data. Retrying. Msg: " <<
+                        e.what();
+         _server_log.writeLog(msg.str().c_str());
+         new_conn->disconnect();
+      }
+      std::string data = getServerID();
+      std::vector<uint8_t> election_ID(data.begin(), data.end());
+      new_conn->assignElectionData(election_ID);
+      _connlist.push_back(std::unique_ptr<TCPConn>(new_conn));
+   }
+
+} */
 /*********************************************************************************************
  * launchDataConn - launches a connection and starts the process of sending the queue data to
  *                  the target server

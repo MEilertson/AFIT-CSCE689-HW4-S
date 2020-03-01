@@ -33,6 +33,10 @@ public:
    // attempts to check "simulator time" should use this function
    time_t getAdjustedTime();
 
+   void syncDB();
+
+   std::string getSvrID() { return _queue.getServerID(); }
+
 private:
 
    void addReplDronePlots(std::vector<uint8_t> &data);
@@ -63,6 +67,10 @@ private:
    // Used to bind the server
    std::string _ip_addr;
    unsigned short _port;
+
+   std::vector<std::tuple< unsigned int, int > > node_time_offset;
+   bool synced = false;
+   unsigned int boss_id = 1;
 };
 
 

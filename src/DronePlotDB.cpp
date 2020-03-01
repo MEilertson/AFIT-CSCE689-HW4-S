@@ -234,8 +234,8 @@ DronePlotDB::~DronePlotDB() {
 
 void DronePlotDB::addPlot(int drone_id, int node_id, time_t timestamp, float latitude, float longitude) {
    // First lock the mutex (blocking)
-   pthread_mutex_lock(&_mutex);
 
+   pthread_mutex_lock(&_mutex);
    _dbdata.emplace_back(drone_id, node_id, timestamp, latitude, longitude);
 
    // Unlock the mutex before we exit

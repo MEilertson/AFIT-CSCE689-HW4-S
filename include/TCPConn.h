@@ -16,7 +16,9 @@ public:
    ~TCPConn();
 
    // The current status of the connection
-   enum statustype { s_none, s_connecting, s_connected, s_datatx, s_datarx, s_waitack, s_hasdata };
+   enum statustype { s_none, s_connecting, s_connected, s_datatx, s_datarx, s_waitack, s_hasdata,
+                        s_client_challenged, s_server_challenging, s_client_challenging, s_server_challenged,
+                              s_client_proof };
 
    statustype getStatus() { return _status; };
 
@@ -67,11 +69,17 @@ public:
 
    // Assign outgoing data and sets up the socket to manage the transmission
    void assignOutgoingData(std::vector<uint8_t> &data);
+   void assignElectionData(std::vector<uint8_t> &data);
 
 protected:
    // Functions to execute various stages of a connection 
    void sendSID();
    void waitForSID();
+   void clientWaitForChallenge();
+   void serverWaitForProof();
+   void clientSendChallenge();
+   void serverWaitForChallenge();
+   void waitForProof();
    void transmitData();
    void waitForData();
    void awaitAck();
@@ -94,7 +102,7 @@ private:
 
    bool _connected = false;
 
-   std::vector<uint8_t> c_rep, c_endrep, c_auth, c_endauth, c_ack, c_sid, c_endsid;
+   std::vector<uint8_t> c_rep, c_endrep, c_auth, c_endauth, c_ack, c_sid, c_endsid, c_elect, c_endelect;
 
    statustype _status = s_none;
 
@@ -106,6 +114,8 @@ private:
    // Store incoming data to be read by the queue manager
    std::vector<uint8_t> _inputbuf;
    bool _data_ready;    // Is the input buffer full and data ready to be read?
+
+   bool _election;
 
    // Store outgoing data to be sent over the network
    std::vector<uint8_t> _outputbuf;
